@@ -22,13 +22,15 @@ namespace pano {
 void ConnectedImages::shift_all_homo() {
   int mid = identity_idx;
   Homography t2 = Homography::get_translation(
-      component[mid].imgptr->width() * 0.5,
-      component[mid].imgptr->height() * 0.5);
+      // component[mid].imgptr->width() * 0.5,
+      // component[mid].imgptr->height() * 0.5);
+      4000 * 0.5, 3000 * 0.5);
   REP(i, (int)component.size())
     if (i != mid) {
       Homography t1 = Homography::get_translation(
-          component[i].imgptr->width() * 0.5,
-          component[i].imgptr->height() * 0.5);
+          // component[i].imgptr->width() * 0.5,
+          // component[i].imgptr->height() * 0.5);
+          4000 * 0.5, 3000 * 0.5);
       component[i].homo = t2 * component[i].homo * t1.inverse();
     }
 }
@@ -61,7 +63,8 @@ void ConnectedImages::update_proj_range() {
           now_max = now_min * (-1);
     for (auto v : corner) {
       Vec homo = m.homo.trans(
-          Vec2D(v.x * m.imgptr->width(), v.y * m.imgptr->height()));
+          // Vec2D(v.x * m.imgptr->width(), v.y * m.imgptr->height()));
+          Vec2D(v.x * 4000, v.y * 3000));
       Vec2D t_corner = homo2proj(homo);
       now_min.update_min(t_corner);
       now_max.update_max(t_corner);
@@ -79,8 +82,9 @@ void ConnectedImages::update_proj_range() {
 Vec2D ConnectedImages::get_final_resolution() const {
   cout << "projmin: " << proj_range.min << ", projmax: " << proj_range.max << endl;
 
-  int refw = component[identity_idx].imgptr->width(),
-      refh = component[identity_idx].imgptr->height();
+  // int refw = component[identity_idx].imgptr->width(),
+  //     refh = component[identity_idx].imgptr->height();
+  int refw = 4000, refh = 3000;
   auto homo2proj = get_homo2proj();
   const Homography& identity_H = component[identity_idx].homo;
   // transform corners to point in space to estimate range

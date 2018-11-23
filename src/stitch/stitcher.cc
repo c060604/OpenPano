@@ -30,15 +30,47 @@ const static bool DEBUG_OUT = false;
 const static char* MATCHINFO_DUMP = "log/matchinfo.txt";
 
 Mat32f Stitcher::build() {
-  calc_feature();
+  // calc_feature();
   // TODO choose a better starting point by MST use centrality
 
   pairwise_matches.resize(imgs.size());
   for (auto& k : pairwise_matches) k.resize(imgs.size());
-  if (ORDERED_INPUT)
+  if (ORDERED_INPUT) {
     linear_pairwise_match();
-  else
-    pairwise_match();
+  } else {
+    // pairwise_match();
+    int n = imgs.size();
+    int i = 0;
+
+    // save match info into file
+    // for (; i < n; i++) {
+    //   int j = 0;
+    //   for (; j < n; j++) {
+    //     ofstream file;
+    //     ostringstream stringStream;
+    //     stringStream << "../match/match_" << i << "_" << j << ".txt";
+    //     string filename = stringStream.str();
+    //     file.open(filename);
+    //     pairwise_matches[i][j].serialize(file);
+    //     file.close();
+    //   }
+    // }
+
+    // read match info from file
+    for (; i < n; i++) {
+      int j = 0;
+      for (; j < n; j++) {
+        MatchInfo info;
+        ifstream file;
+        ostringstream stringStream;
+        stringStream << "../match/match_" << i << "_" << j << ".txt";
+        string filename = stringStream.str();
+        file.open(filename);
+        pairwise_matches[i][j] = info.deserialize(file);
+        file.close();
+      }
+    }
+  }
   free_feature();
   //load_matchinfo(MATCHINFO_DUMP);
   if (DEBUG_OUT) {
