@@ -34,7 +34,7 @@ class StitcherBase {
 		std::unique_ptr<FeatureDetector> feature_det;
 
 		// get feature descriptor and keypoints for each image
-		void calc_feature();
+		void calc_feature(std::vector<int>& feature_less);
 
 		void free_feature();
 

@@ -18,7 +18,8 @@ using namespace std;
 namespace pano {
 
 Mat32f CylinderStitcher::build() {
-	calc_feature();
+	vector<int> feature_less;
+	calc_feature(feature_less);
 	bundle.identity_idx = imgs.size() >> 1;
 	build_warp();
 	free_feature();

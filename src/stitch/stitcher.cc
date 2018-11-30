@@ -30,22 +30,80 @@ const static bool DEBUG_OUT = false;
 const static char* MATCHINFO_DUMP = "log/matchinfo.txt";
 
 Mat32f Stitcher::build() {
-  // calc_feature();
-  // TODO choose a better starting point by MST use centrality
+  vector<int> feature_less;                   // 记录缺少 feature 的图片序号
+  calc_feature(feature_less);
+
+  map<int, vector<int>> image_map = {         // 保存每张图片相邻的右侧和下册图片序号
+    {1, {}}                                   // 序号 1 的图片是云台正朝下的图片，因此没有相邻的右侧和下侧图片
+  };
+  vector<vector<int>> image_array = {         // 二维数组表示图片拼接的位置，用于生成 image_map
+    {32, 18, 11, 27, 8, 21, 5, 0, 32},
+    {29, 13, 23, 6, 15, 16, 25, 3, 29},
+    {28, 12, 20, 9, 10, 19, 26, 2, 28},
+    {24, 31, 17, 14, 30, 7, 22, 4, 24},
+    {1, 1, 1, 1, 1, 1, 1, 1, 1}
+  };
+
+  // 构建 image_map
+  for (int x = 0; x < (int)image_array.size() - 1; x++) {
+    for (int y = 0; y < (int)image_array[x].size() - 1; y++) {
+      // print_debug("%d -> %d, %d\n", image_array[x][y], image_array[x+1][y], image_array[x][y+1]);
+      image_map.insert({ {image_array[x][y], { image_array[x+1][y], image_array[x][y+1] }} });
+    }
+  }
 
   pairwise_matches.resize(imgs.size());
   for (auto& k : pairwise_matches) k.resize(imgs.size());
   if (ORDERED_INPUT) {
     linear_pairwise_match();
   } else {
-    // pairwise_match();
-    int n = imgs.size();
-    int i = 0;
+    pairwise_match();
+    int image_count = (int)imgs.size();
+
+    // 对于 feature 不足的图片，从 match 配置文件里面读取 match info
+    for (int index = 0; index < (int)feature_less.size(); index++) {
+      int image_index = feature_less[index];
+      for (int j = 0; j < image_count; j++) {
+        MatchInfo info1, info2;
+        ifstream file1, file2;
+        ostringstream stringStream1, stringStream2;
+        stringStream1 << "../match/match_" << image_index << "_" << j << ".txt";
+        stringStream2 << "../match/match_" << j << "_" << image_index << ".txt";
+        string filename1 = stringStream1.str(), filename2 = stringStream2.str();
+        file1.open(filename1);
+        file2.open(filename2);
+        pairwise_matches[image_index][j] = info1.deserialize(file1);
+        pairwise_matches[j][image_index] = info2.deserialize(file2);
+        file1.close();
+        file2.close();
+      }
+    }
+
+    // 对于每张图片，检测其相邻的右侧和下侧图片的 match info
+    // 如果 match info 为 0，则从 match 配置文件里面读取 match info
+    for (int i = 0; i < image_count; i++) {
+      vector<int> neighboors = image_map.at(i);
+      for (int j = 0; j < (int)neighboors.size(); j++) {
+        if (pairwise_matches[i][neighboors[j]].confidence == 0) {
+          MatchInfo info1, info2;
+          ifstream file1, file2;
+          ostringstream stringStream1, stringStream2;
+          stringStream1 << "../match/match_" << i << "_" << neighboors[j] << ".txt";
+          stringStream2 << "../match/match_" << neighboors[j] << "_" << i << ".txt";
+          string filename1 = stringStream1.str(), filename2 = stringStream2.str();
+          file1.open(filename1);
+          file2.open(filename2);
+          pairwise_matches[i][neighboors[j]] = info1.deserialize(file1);
+          pairwise_matches[neighboors[j]][i] = info2.deserialize(file2);
+          file1.close();
+          file2.close();
+        }
+      }
+    }
 
     // save match info into file
-    // for (; i < n; i++) {
-    //   int j = 0;
-    //   for (; j < n; j++) {
+    // for (int i = 0; i < image_count; i++) {
+    //   for (int j = 0; j < image_count; j++) {
     //     ofstream file;
     //     ostringstream stringStream;
     //     stringStream << "../match/match_" << i << "_" << j << ".txt";
@@ -57,19 +115,20 @@ Mat32f Stitcher::build() {
     // }
 
     // read match info from file
-    for (; i < n; i++) {
-      int j = 0;
-      for (; j < n; j++) {
-        MatchInfo info;
-        ifstream file;
-        ostringstream stringStream;
-        stringStream << "../match/match_" << i << "_" << j << ".txt";
-        string filename = stringStream.str();
-        file.open(filename);
-        pairwise_matches[i][j] = info.deserialize(file);
-        file.close();
-      }
-    }
+    // for (int i = 0; i < image_count; i++) {
+    //   for (int j = 0; j < image_count; j++) {
+    //     if (pairwise_matches[i][j].confidence == 0) {
+    //       MatchInfo info;
+    //       ifstream file;
+    //       ostringstream stringStream;
+    //       stringStream << "../match/match_" << i << "_" << j << ".txt";
+    //       string filename = stringStream.str();
+    //       file.open(filename);
+    //       pairwise_matches[i][j] = info.deserialize(file);
+    //       file.close();
+    //     }
+    //   }
+    // }
   }
   free_feature();
   //load_matchinfo(MATCHINFO_DUMP);
