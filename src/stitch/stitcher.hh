@@ -26,6 +26,8 @@ class Stitcher : public StitcherBase {
 		// pairwise_matches[i][j].homo transform j to i, with coor in [-w/2,w/2]
 		std::vector<std::vector<MatchInfo>> pairwise_matches;
 
+		bool is_element_in_vector(std::vector<int>& v, int e);
+
 		// match two images
 		bool match_image(const PairWiseMatcher&, int i, int j);
 

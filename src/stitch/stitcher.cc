@@ -33,22 +33,23 @@ Mat32f Stitcher::build() {
   vector<int> feature_less;                   // 记录缺少 feature 的图片序号
   calc_feature(feature_less);
 
-  map<int, vector<int>> image_map = {         // 保存每张图片相邻的右侧和下册图片序号
-    {1, {}}                                   // 序号 1 的图片是云台正朝下的图片，因此没有相邻的右侧和下侧图片
+  map<int, vector<int>> image_map = {         // 保存每张图片相邻的上下左右四个方向图片序号
+    {1, {}}                                   // 序号 1 的图片是云台正朝下的图片，因此没有相邻的图片
   };
-  vector<vector<int>> image_array = {         // 二维数组表示图片拼接的位置，用于生成 image_map
-    {32, 18, 11, 27, 8, 21, 5, 0, 32},
-    {29, 13, 23, 6, 15, 16, 25, 3, 29},
-    {28, 12, 20, 9, 10, 19, 26, 2, 28},
-    {24, 31, 17, 14, 30, 7, 22, 4, 24},
-    {1, 1, 1, 1, 1, 1, 1, 1, 1}
+  vector<vector<int>> image_array = {         // 二维数组表示图片拼接的位置，用于生成 image_map（上边缘和左边缘多加一圈方便构造 image_map）
+    {0, 32, 18, 11, 27, 8, 21, 5, 0, 32},
+    {0, 32, 18, 11, 27, 8, 21, 5, 0, 32},
+    {3, 29, 13, 23, 6, 15, 16, 25, 3, 29},
+    {2, 28, 12, 20, 9, 10, 19, 26, 2, 28},
+    {4, 24, 31, 17, 14, 30, 7, 22, 4, 24},
+    {1, 1, 1, 1, 1, 1, 1, 1, 1, 1}
   };
 
   // 构建 image_map
-  for (int x = 0; x < (int)image_array.size() - 1; x++) {
-    for (int y = 0; y < (int)image_array[x].size() - 1; y++) {
+  for (int x = 1; x < (int)image_array.size() - 1; x++) {
+    for (int y = 1; y < (int)image_array[x].size() - 1; y++) {
       // print_debug("%d -> %d, %d\n", image_array[x][y], image_array[x+1][y], image_array[x][y+1]);
-      image_map.insert({ {image_array[x][y], { image_array[x+1][y], image_array[x][y+1] }} });
+      image_map.insert({ {image_array[x][y], { image_array[x+1][y], image_array[x][y+1], image_array[x-1][y], image_array[x][y-1] }} });
     }
   }
 
@@ -79,7 +80,7 @@ Mat32f Stitcher::build() {
       }
     }
 
-    // 对于每张图片，检测其相邻的右侧和下侧图片的 match info
+    // 对于每张图片，检测其相邻的上下左右图片的 match info
     // 如果 match info 为 0，则从 match 配置文件里面读取 match info
     for (int i = 0; i < image_count; i++) {
       vector<int> neighboors = image_map.at(i);
@@ -97,6 +98,15 @@ Mat32f Stitcher::build() {
           pairwise_matches[neighboors[j]][i] = info2.deserialize(file2);
           file1.close();
           file2.close();
+        }
+      }
+      // 对于不是相邻的图片，则将 match info 信息清空，减少其他位置图片的影响
+      // 为了防止错拍图片导致拼接错乱
+      for (int j = 0; j < image_count; j++) {
+        if (!is_element_in_vector(neighboors, j)) {
+          MatchInfo info;
+          pairwise_matches[i][j] = info;
+          // print_debug("%d -> %d: %f\n", i, j, pairwise_matches[i][j].confidence);
         }
       }
     }
@@ -152,6 +162,16 @@ Mat32f Stitcher::build() {
   bundle.update_proj_range();
 
   return bundle.blend();
+}
+
+bool Stitcher::is_element_in_vector(vector<int>& v,int element) {
+  vector<int>::iterator it;
+  it = find(v.begin(), v.end(), element);
+  if (it != v.end()) {
+    return true;
+  } else {
+    return false;
+  }
 }
 
 bool Stitcher::match_image(
